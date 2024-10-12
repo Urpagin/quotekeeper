@@ -16,3 +16,18 @@ Linux: OK
 Windows: NOT OK
 
 macOS: UNTESTED
+
+## How to install?
+
+Using cargo:
+```bash
+cargo install --git https://github.com/Urpagin/quotekeeper.git --branch master
+```
+
+## How to completely uninstall?
+
+Using cargo + removing files:
+
+```bash
+cargo uninstall quotekeeper && rm -rf ~/.quotekeeper/
+```
