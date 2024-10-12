@@ -19,6 +19,10 @@ macOS: UNTESTED
 
 ## How to install?
 
+
+> [!NOTE]
+> Make sure to add `export PATH="$HOME/.cargo/bin:$PATH"` to your shell configuration file (e.g., `.bashrc`, `.zshrc`) to ensure that binaries installed with `cargo` are available system-wide.
+
 Using cargo:
 ```bash
 cargo install --git https://github.com/Urpagin/quotekeeper.git --branch master
