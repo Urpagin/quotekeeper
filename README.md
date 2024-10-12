@@ -12,5 +12,7 @@ Imagine you're in a history class with your eccentric teacher, and they say some
 ## Platforms
 
 Linux: OK
+
 Windows: NOT OK
-macOS: NOT TESTED
+
+macOS: UNTESTED
