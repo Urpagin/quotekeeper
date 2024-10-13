@@ -47,6 +47,11 @@ All data related to QuoteKeeper is located in the home directory:
 
 - Automatically backs up your quotes file if the JSON somehow gets corrupted.
 
+
+## Known Issues
+
+When using a custom editor, if the startup time is too long, the program may not function as expected. This issue is particularly noticeable with VSCodium.
+
 ## Todo
 
 - [ ] Implement cli commands to change the settings.
