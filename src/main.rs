@@ -291,8 +291,8 @@ fn get_quote_editor(editor: &str) -> String {
     if contents.is_empty() {
         std::io::stdout().flush().unwrap();
         let answer = prompt_yes_or_no(
-            "The quote is blank, do you want to re-enter a quote (Y/n) ",
-            YesOrNo::Yes,
+            "The quote is blank, do you want to re-enter a quote (N/y) ",
+            YesOrNo::No,
         );
 
         match answer {
