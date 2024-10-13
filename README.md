@@ -1,21 +1,20 @@
 # QuoteKeeper
 
-QuoteKeeper is a small Rust-written program to quickly record any quote you hear.
+QuoteKeeper is a compact, Rust-based tool designed to quickly capture and organize quotes. Ideal for academic, literary, or personal use, it stores quotes efficiently in a JSON format.
 
-> [!IMPORTANT]
-> This project is currently under development and has not been finalized. Please refrain from using it until this notice is removed.
+> [!NOTE]
+> This project has not been thoroughly tested. Bugs might arise.
 
 ## Why use QuoteKeeper?
 
-Imagine you're in a history class with your eccentric teacher, and they say something funny that you'd like to save for later. Instead of wasting 45 seconds opening a new file and filling out the details, QuoteKeeper allows you to jot it down instantly and keep it neatly organized in a JSON file.
+Imagine you're in a history class with your eccentric teacher, and they say something funny that you'd like to save for later. Instead of wasting 45 seconds opening a new file and filling out the details, QuoteKeeper allows you to jot it down instantly and keep it neatly organized.
 
-## Platforms
+## Compatibility
 
-Linux: OK
+- Linux: Supported
+- macOS: Compatibility unknown
+- Windows: Not supported
 
-Windows: NOT OK
-
-macOS: UNTESTED
 
 ## How to install?
 
@@ -35,3 +34,13 @@ Using cargo + removing files:
 ```bash
 cargo uninstall quotekeeper && rm -rf ~/.quotekeeper/
 ```
+## Where are the quotes stored?
+
+All data related to QuoteKeeper is located in the home directory:
+
+- **Quotes:** The quotes you save are stored in `~/.quotekeeper/quotes.json`.
+- **Configuration:** Settings can be adjusted in `~/.quotekeeper/config.conf`.
+
+## Features
+
+Select your preferred editor or even use stdin for recording quotes. This setting can be adjusted in the config file located at `~/.quotekeeper/config.conf`.

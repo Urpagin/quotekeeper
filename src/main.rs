@@ -1,3 +1,5 @@
+mod config;
+
 use core::panic;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -8,13 +10,15 @@ use std::{
 };
 
 use chrono::Local;
+use config::get_config;
 use tempfile::NamedTempFile;
 
 const PROGRAM_DATA_DIRECTORY: &str = ".quotekeeper";
 const QUOTES_FILE_NAME: &str = "quotes.json";
+const CONFIG_FILE_NAME: &str = "config.conf";
 
 fn main() {
-    let quote: String = get_quote_editor();
+    let quote: String = get_quote();
     let author: String = get_author();
     let date: String = get_date();
 
@@ -46,7 +50,7 @@ fn update_quotes(
     update_json(quote, author, date, &quotes_file.to_string_lossy())
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 struct Quote {
     quote: String,
     author: String,
@@ -66,16 +70,6 @@ impl std::fmt::Display for Quote {
 #[derive(Serialize, Deserialize)]
 struct Quotes {
     quotes: Vec<Quote>,
-}
-
-impl Default for Quote {
-    fn default() -> Self {
-        Self {
-            quote: String::default(),
-            author: String::default(),
-            date: String::default(),
-        }
-    }
 }
 
 impl Default for Quotes {
@@ -136,6 +130,28 @@ fn get_author() -> String {
     prompt_user("Quote author\n-> ")
 }
 
+/// Decices how to get the quote from the user.
+///
+/// # Returns
+/// A `String`, the quote from the user.
+fn get_quote() -> String {
+    let home_dir = dirs::home_dir().expect("Home directory not found.");
+
+    let config_path = home_dir.join(PROGRAM_DATA_DIRECTORY).join(CONFIG_FILE_NAME);
+
+    let config = get_config(&config_path.to_string_lossy());
+    let editor: &str = &config.settings.editor;
+
+    match editor {
+        "stdin" => get_quote_stdin(),
+        "default" => {
+            let default_editor = var("EDITOR").expect("Failed to read 'EDITOR' env variable.");
+            get_quote_editor(&default_editor)
+        }
+        _ => get_quote_editor(editor),
+    }
+}
+
 /// Gets a quote from the user from stdin.
 ///
 /// # Returns
@@ -151,18 +167,16 @@ fn get_quote_stdin() -> String {
 ///
 /// # Panics
 /// Panics on error.
-fn get_quote_editor() -> String {
+fn get_quote_editor(editor: &str) -> String {
     // Temp file that auto-deletes
     let mut file = NamedTempFile::new().expect("Failed to create tempfile.");
-
     let file_path = file.path();
-    let editor = &var("EDITOR").expect("Failed to read 'EDITOR' env variable.");
 
     // This assumes the default editor works like: <editor> <file_path> to open a file
     let status = Command::new(editor)
         .arg(file_path)
         .status()
-        .expect(&format!("Failed to open {editor}"));
+        .unwrap_or_else(|_| panic!("Failed to open {editor}"));
 
     if !status.success() {
         panic!("{editor} exited with error.");
@@ -184,7 +198,7 @@ fn get_quote_editor() -> String {
         match answer {
             YesOrNo::Yes => {
                 // Use of recursion
-                return get_quote_editor();
+                return get_quote_editor(editor);
             }
             YesOrNo::No => {
                 println!("Quote empty, program aborted.");
@@ -219,11 +233,9 @@ fn prompt_yes_or_no(prompt: &str, default: YesOrNo) -> YesOrNo {
 /// # Returns
 /// A `String` of the current date by asking the user, so it could be anything.
 fn get_date() -> String {
-    loop {
-        match prompt_yes_or_no("Do you want to set a custom date (N/y) ", YesOrNo::No) {
-            YesOrNo::Yes => return prompt_user("Date\n-> "),
-            YesOrNo::No => return get_machine_date(),
-        }
+    match prompt_yes_or_no("Do you want to set a custom date (N/y) ", YesOrNo::No) {
+        YesOrNo::Yes => prompt_user("Date\n-> "),
+        YesOrNo::No => get_machine_date(),
     }
 }
 
@@ -269,44 +281,5 @@ fn prompt_user(prompt: &str) -> String {
         if !answer.is_empty() {
             return answer;
         }
-    }
-}
-
-enum ConfigArgs {
-    /// Whether the program reads quotes from stdin.
-    UseStdin(bool),
-    /// If not from stdin, using custom editor. By default, uses the EDITOR env var.
-    CustomEditor(String),
-}
-
-#[derive(Serialize)]
-struct ConfigTomlArgs {
-    editor: String,
-}
-
-struct Config<'a> {
-    file_path: &'a str,
-}
-
-impl<'a> Config<'a> {
-    fn new(file_path: &'a str) -> Self {
-        Self { file_path }
-    }
-
-    /// Creates the initial config file and populates it with defaults.
-    fn init_config_file(&self) {
-
-        let default = r#"[settings]
-        # Set this to your favorite editor to write your quotes.
-        # You can also set it to 'stdin' to read from the standard input,
-        # or 'default' to use the default editor on your machine.
-        editor = default"#;
-
-        let mut file = File::create(&self.file_path).expect("Failed to create new config file.");
-        file.write_all(default.as_bytes()).expect("Failed to populate newly created config file.");
-    }
-
-    fn load_config(&self) -> ConfigArgs {
-        let mut file = File::open(&self.file_path).expect("Failed to open config file.")
     }
 }
