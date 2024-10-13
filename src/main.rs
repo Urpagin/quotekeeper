@@ -210,10 +210,13 @@ fn backup_quotes(filepath: &str) -> std::io::Result<()> {
 
     // Make the full path, create the file and populate it.
     let bak_file_path = backup_path.join(new_file_name);
-    let mut bak_file = File::create(bak_file_path)?;
+    let mut bak_file = File::create(&bak_file_path)?;
     bak_file.write_all(contents.as_bytes())?;
 
-    println!("Successfully backed up the quotes file due to malformed JSON.");
+    println!(
+        "Successfully backed up the quotes file due to malformed JSON. Backup at {:#?}",
+        bak_file_path
+    );
 
     Ok(())
 }

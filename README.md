@@ -43,4 +43,11 @@ All data related to QuoteKeeper is located in the home directory:
 
 ## Features
 
-Select your preferred editor or even use stdin for recording quotes. This setting can be adjusted in the config file located at `~/.quotekeeper/config.conf`.
+- Select your preferred editor or even use stdin for recording quotes. This setting can be adjusted in the config file located at `~/.quotekeeper/config.conf`.
+
+- Automatically backs up your quotes file if the JSON somehow gets corrupted.
+
+## Todo
+
+- [ ] Implement cli commands to change the settings.
+- [ ] Most recent quote authors system. (less typing)
