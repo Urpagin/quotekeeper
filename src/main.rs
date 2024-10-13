@@ -106,7 +106,9 @@ fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io
         author: author.to_string(),
         date: date.to_string(),
     };
-    println!("\n{new_quote}");
+
+    let dashes = "--------------------";
+    println!("{dashes}\n{new_quote}\n{dashes}");
 
     let mut quotes = Quotes::default();
 
@@ -120,7 +122,7 @@ fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io
             // TODO: Backup the current quotes file. Because we're overwritting the old file here.
             //
             //backup_quotes(filepath)?;
-            eprintln!("Failed to parse quotes, overwritting quotes file.");
+            eprintln!("Failed to parse quotes, reinitializing file: corrupt JSON or quotes file not existing.");
             quotes.quotes = vec![new_quote];
         }
     }

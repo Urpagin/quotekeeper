@@ -29,10 +29,10 @@ cargo install --git https://github.com/Urpagin/quotekeeper.git --branch master
 
 ## How to completely uninstall?
 
-Using cargo + removing files:
+Removing files + uninstalling with cargo:
 
 ```bash
-cargo uninstall quotekeeper && rm -rf ~/.quotekeeper/
+rm -rf ~/.quotekeeper/ && cargo uninstall quotekeeper
 ```
 ## Where are the quotes stored?
 
