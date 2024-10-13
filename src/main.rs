@@ -6,6 +6,7 @@ use std::{
     env::var,
     fs::File,
     io::{BufReader, BufWriter, Read, Write},
+    path::Path,
     process::{exit, Command},
 };
 
@@ -17,7 +18,11 @@ const PROGRAM_DATA_DIRECTORY: &str = ".quotekeeper";
 const QUOTES_FILE_NAME: &str = "quotes.json";
 const CONFIG_FILE_NAME: &str = "config.conf";
 
+// TODO: Make cli commands to change settings.
+
 fn main() {
+    init_app_dir();
+
     let quote: String = get_quote();
     let author: String = get_author();
     let date: String = get_date();
@@ -25,6 +30,16 @@ fn main() {
     if let Err(e) = update_quotes(&quote, &author, &date, QUOTES_FILE_NAME) {
         eprintln!("Failed to update quotes: {e}");
         exit(-1);
+    }
+}
+
+/// Creates the directory of the program
+fn init_app_dir() {
+    let home_dir = dirs::home_dir().expect("Home directory not found.");
+    let path = Path::new(&home_dir).join(PROGRAM_DATA_DIRECTORY);
+
+    if !path.exists() {
+        std::fs::create_dir(&path).expect("Failed to create app directory.");
     }
 }
 
