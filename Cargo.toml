@@ -10,3 +10,9 @@ serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 tempfile = "3.13.0"
 toml = "0.8.19"
+
+[profile.release]
+opt-level = 3  # Optimize for speed. Max level is 3, which applies the most optimizations.
+lto = true     # Enables Link Time Optimization, which can improve performance and reduce file size.
+codegen-units = 1  # Minimizes the number of parallel codegen units to increase optimizations at the cost of longer compile time.
+panic = 'abort'  # Best for release builds to minimize the binary size, assuming you don't need to catch panics.
