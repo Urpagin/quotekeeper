@@ -17,11 +17,12 @@ use tempfile::NamedTempFile;
 const PROGRAM_DATA_DIRECTORY: &str = ".quotekeeper";
 const QUOTES_FILE_NAME: &str = "quotes.json";
 const CONFIG_FILE_NAME: &str = "config.conf";
+const BACKUP_DIRECTORY: &str = "recovered_quotes";
 
 // TODO: Make cli commands to change settings.
 
 fn main() {
-    init_app_dir();
+    init_app_fs();
 
     let quote: String = get_quote();
     let author: String = get_author();
@@ -33,14 +34,18 @@ fn main() {
     }
 }
 
-/// Creates the directory of the program
-fn init_app_dir() {
+/// Creates the directory of the program and files.
+fn init_app_fs() {
     let home_dir = dirs::home_dir().expect("Home directory not found.");
-    let path = Path::new(&home_dir).join(PROGRAM_DATA_DIRECTORY);
+    let program_root = Path::new(&home_dir).join(PROGRAM_DATA_DIRECTORY);
 
-    if !path.exists() {
-        std::fs::create_dir(&path).expect("Failed to create app directory.");
+    if !program_root.exists() {
+        std::fs::create_dir(&program_root).expect("Failed to create app directory.");
     }
+
+    let quotes_path = program_root.join(QUOTES_FILE_NAME);
+
+    init_file(&quotes_path.to_string_lossy(), r#"{"quotes": []}"#);
 }
 
 /// Adds a new quote to the quotes file.
@@ -95,8 +100,30 @@ impl Default for Quotes {
     }
 }
 
+/// Creates a file and populates it with a default content only if it does not exist.
+fn init_file(path: &str, content: &str) {
+    let path = Path::new(path);
+
+    if path.exists() {
+        return;
+    }
+
+    let mut file =
+        File::create(path).unwrap_or_else(|_| panic!("Failed to create file {:#?}", path));
+
+    file.write_all(content.as_bytes())
+        .unwrap_or_else(|_| panic!("Failed to populate file {:#?}", path));
+
+    file.flush()
+        .unwrap_or_else(|_| panic!("Failed to flush file {:#?}", path));
+
+    file.sync_all()
+        .unwrap_or_else(|_| panic!("Failed to sync file to fs {:#?}", path));
+}
 /// Adds a new quote to the json file.
 fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io::Result<()> {
+    // Populate initial empty JSON if the file does not already exist
+
     // Parse the file
     let file = File::open(filepath)?;
     let reader = BufReader::new(file);
@@ -119,10 +146,12 @@ fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io
             quotes.quotes.push(new_quote);
         }
         Err(_) => {
-            // TODO: Backup the current quotes file. Because we're overwritting the old file here.
-            //
-            //backup_quotes(filepath)?;
-            eprintln!("Failed to parse quotes, reinitializing file: corrupt JSON or quotes file not existing.");
+            eprintln!("Failed to parse quotes file '{filepath}', reinitializing file: corrupt JSON or quotes file not existing.");
+
+            if let Err(e) = backup_quotes(filepath) {
+                eprintln!("Failed to backup the quotes file: {e}")
+            }
+
             quotes.quotes = vec![new_quote];
         }
     }
@@ -134,6 +163,57 @@ fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io
     serde_json::to_writer_pretty(writer, &quotes)?;
 
     println!("\nSaved quote in '{filepath}'");
+
+    Ok(())
+}
+
+/// Makes a copy of the inputted file.
+fn backup_quotes(filepath: &str) -> std::io::Result<()> {
+    let path = Path::new(filepath);
+    let backup_path = Path::new(filepath)
+        .parent()
+        .expect("Failed to get parent dir of bakcup quotes file.")
+        .join(BACKUP_DIRECTORY);
+
+    // Read the file's contents.
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // mkdir if it does not exist.
+    if !backup_path.exists() {
+        std::fs::create_dir(&backup_path)?;
+    }
+
+    // file_name is quotes.json
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("default_filename")
+        .to_string();
+
+    // Split "quotes.json" into "quotes" and "json" into `String`.
+    let mut split_file_name = file_name.split(".");
+    let name: String = split_file_name
+        .next()
+        .map(|s| s.to_string())
+        .unwrap_or("ERR_quotes".to_string());
+    let ext: String = split_file_name
+        .next()
+        .map(|s| s.to_string())
+        .unwrap_or("ERR_.json".to_string());
+
+    // Create the new filename "[date]_quotes.json"
+    let now = Local::now();
+    let formatted = now.format("%d-%m-%Y_%H:%M:%S").to_string();
+    let new_file_name = format!("{name}_{formatted}.{ext}");
+
+    // Make the full path, create the file and populate it.
+    let bak_file_path = backup_path.join(new_file_name);
+    let mut bak_file = File::create(bak_file_path)?;
+    bak_file.write_all(contents.as_bytes())?;
+
+    println!("Successfully backed up the quotes file due to malformed JSON.");
 
     Ok(())
 }
