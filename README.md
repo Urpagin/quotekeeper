@@ -54,5 +54,7 @@ When using a custom editor, if the startup time is too long, the program may not
 
 ## Todo
 
-- [ ] Implement cli commands to change the settings.
+- [ ] Implement cli commands to change the settings
 - [ ] Most recent quote authors system. (less typing)
+- [ ] Add other export format (e.g. .txt)
+- [ ] Delete & modify records
