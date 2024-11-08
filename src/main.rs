@@ -27,8 +27,9 @@ fn main() {
     let quote: String = get_quote();
     let author: String = get_author();
     let date: String = get_date();
+    let grade: f32 = get_grade();
 
-    if let Err(e) = update_quotes(&quote, &author, &date, QUOTES_FILE_NAME) {
+    if let Err(e) = update_quotes(&quote, &author, &date, &grade, QUOTES_FILE_NAME) {
         eprintln!("Failed to update quotes: {e}");
         exit(-1);
     }
@@ -53,6 +54,7 @@ fn update_quotes(
     quote: &str,
     author: &str,
     date: &str,
+    grade: &f32,
     file_name: &str,
 ) -> Result<(), std::io::Error> {
     let home_dir = dirs::home_dir().expect("Home directory not found.");
@@ -67,13 +69,14 @@ fn update_quotes(
         File::create(&quotes_file)?;
     }
 
-    update_json(quote, author, date, &quotes_file.to_string_lossy())
+    update_json(quote, author, grade, date, &quotes_file.to_string_lossy())
 }
 
 #[derive(Serialize, Deserialize, Default)]
 struct Quote {
     quote: String,
     author: String,
+    grade: String,
     date: String,
 }
 
@@ -81,8 +84,8 @@ impl std::fmt::Display for Quote {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "quote: {}\nauthor: {}\ndate: {}",
-            self.quote, self.author, self.date
+            "quote: {}\nauthor: {}\ngrade: {}\ndate: {}",
+            self.quote, self.author, self.grade, self.date
         )
     }
 }
@@ -121,7 +124,13 @@ fn init_file(path: &str, content: &str) {
         .unwrap_or_else(|_| panic!("Failed to sync file to fs {:#?}", path));
 }
 /// Adds a new quote to the json file.
-fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io::Result<()> {
+fn update_json(
+    quote: &str,
+    author: &str,
+    grade: &f32,
+    date: &str,
+    filepath: &str,
+) -> std::io::Result<()> {
     // Populate initial empty JSON if the file does not already exist
 
     // Parse the file
@@ -131,6 +140,7 @@ fn update_json(quote: &str, author: &str, date: &str, filepath: &str) -> std::io
     let new_quote: Quote = Quote {
         quote: quote.to_string(),
         author: author.to_string(),
+        grade: grade.to_string(),
         date: date.to_string(),
     };
 
@@ -336,6 +346,25 @@ fn get_date() -> String {
     match prompt_yes_or_no("Do you want to set a custom date (N/y) ", YesOrNo::No) {
         YesOrNo::Yes => prompt_user("Date\n-> "),
         YesOrNo::No => get_machine_date(),
+    }
+}
+
+/// Gets a grade of the quote from the user
+/// # Returns
+///  A float (f16) of th grade on 10
+
+fn get_grade() -> f32 {
+    loop {
+        let user_input = prompt_user("Set the grade for the quote between 0-10: ");
+        let user_grade = match user_input.parse::<f32>() {
+            Ok(value) => value,
+            Err(_) => -2.0,
+        };
+        if (user_grade <= 10.0 && user_grade >= 0.0) || (user_grade == -1.0) {
+            return user_grade;
+        } else {
+            println!("Wrong value or format number")
+        }
     }
 }
 
