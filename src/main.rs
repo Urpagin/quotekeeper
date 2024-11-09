@@ -1,6 +1,7 @@
 mod config;
 
 use core::panic;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
     env::var,
@@ -8,16 +9,28 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
     path::Path,
     process::{exit, Command},
+    sync::Mutex,
 };
 
 use chrono::Local;
-use config::get_config;
+use config::{get_config, Config};
 use tempfile::NamedTempFile;
 
 const PROGRAM_DATA_DIRECTORY: &str = ".quotekeeper";
 const QUOTES_FILE_NAME: &str = "quotes.json";
 const CONFIG_FILE_NAME: &str = "config.conf";
 const BACKUP_DIRECTORY: &str = "recovered_quotes";
+
+// Config
+lazy_static! {
+    static ref CONFIG: Mutex<Config> = {
+        let home_dir = dirs::home_dir().expect("Home directory not found.");
+        let config_path = home_dir.join(PROGRAM_DATA_DIRECTORY).join(CONFIG_FILE_NAME);
+        let config = get_config(&config_path.to_string_lossy());
+
+        Mutex::new(config)
+    };
+}
 
 // TODO: Make cli commands to change settings.
 
@@ -26,10 +39,10 @@ fn main() {
 
     let quote: String = get_quote();
     let author: String = get_author();
-    let grade: f32 = get_grade();
+    let grade: Option<f32> = get_grade();
     let date: String = get_date();
 
-    if let Err(e) = update_quotes(&quote, &author, &grade, &date, QUOTES_FILE_NAME) {
+    if let Err(e) = update_quotes(&quote, &author, grade, &date, QUOTES_FILE_NAME) {
         eprintln!("Failed to update quotes: {e}");
         exit(-1);
     }
@@ -53,7 +66,7 @@ fn init_app_fs() {
 fn update_quotes(
     quote: &str,
     author: &str,
-    grade: &f32,
+    grade: Option<f32>,
     date: &str,
     file_name: &str,
 ) -> Result<(), std::io::Error> {
@@ -76,15 +89,25 @@ fn update_quotes(
 struct Quote {
     quote: String,
     author: String,
-    grade: String,
+    grade: Option<f32>,
     date: String,
 }
 
+// This should reflect the true values of the quote, so Some(5) is just 5.
+// In other words, the values stored in the quotes file.
 impl std::fmt::Display for Quote {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(grade) = self.grade {
+            return write!(
+                f,
+                "quote: {}\nauthor: {}\ngrade: {}\ndate: {}",
+                self.quote, self.author, grade, self.date
+            );
+        }
+
         write!(
             f,
-            "quote: {}\nauthor: {}\ngrade: {}\ndate: {}",
+            "quote: {}\nauthor: {}\ngrade: {:?}\ndate: {}",
             self.quote, self.author, self.grade, self.date
         )
     }
@@ -128,7 +151,7 @@ fn init_file(path: &str, content: &str) {
 fn update_json(
     quote: &str,
     author: &str,
-    grade: &f32,
+    grade: Option<f32>,
     date: &str,
     filepath: &str,
 ) -> std::io::Result<()> {
@@ -141,7 +164,7 @@ fn update_json(
     let new_quote: Quote = Quote {
         quote: quote.to_string(),
         author: author.to_string(),
-        grade: grade.to_string(),
+        grade,
         date: date.to_string(),
     };
 
@@ -246,11 +269,7 @@ fn get_author() -> String {
 /// # Returns
 /// A `String`, the quote from the user.
 fn get_quote() -> String {
-    let home_dir = dirs::home_dir().expect("Home directory not found.");
-
-    let config_path = home_dir.join(PROGRAM_DATA_DIRECTORY).join(CONFIG_FILE_NAME);
-
-    let config = get_config(&config_path.to_string_lossy());
+    let config = CONFIG.lock().unwrap();
     let editor: &str = &config.settings.editor;
 
     match editor {
@@ -353,10 +372,16 @@ fn get_date() -> String {
 /// Gets a grade of the quote from the user
 ///
 /// # Returns
-/// A `f32` of the grade in the range 0-10.
-fn get_grade() -> f32 {
+/// A `Option<f32>` of the grade in the range 0-10.
+/// If the user enters "None", "Nil", "Null" or "No" returns `None`.
+fn get_grade() -> Option<f32> {
+    let config = CONFIG.lock().unwrap();
+    if !config.settings.enable_quote_grading {
+        return None;
+    }
+
     loop {
-        let user_input = prompt_user("Quote grade (floating number 0-10)\n-> ");
+        let user_input = prompt_user("Quote grade (floating number 0-10 or \"none\")\n-> ");
         if let Ok(value) = user_input.parse::<f32>() {
             if !(0.0..10.0).contains(&value) {
                 eprintln!("Error: invalid range. (Expected from 0.0 to 10.0).");
@@ -364,9 +389,17 @@ fn get_grade() -> f32 {
             }
 
             // We use .abs() because "-0" is valid, and we don't want "-0" in the JSON.
-            return value.abs();
-        } else {
-            eprintln!("Error: not a floating number.");
+            return Some(value.abs());
+        }
+
+        let lowercase_input: &str = &user_input.to_lowercase();
+        match lowercase_input {
+            "null" | "none" | "no" | "nil" => {
+                return None;
+            }
+            _ => {
+                eprintln!("Error: not a floating number.");
+            }
         }
     }
 }

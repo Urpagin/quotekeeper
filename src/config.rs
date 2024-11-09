@@ -15,6 +15,7 @@ pub struct Config {
 #[derive(Deserialize, Debug)]
 pub struct Settings {
     pub editor: String,
+    pub enable_quote_grading: bool,
 }
 
 /// Loads the config file and returns its contents.
@@ -48,7 +49,10 @@ fn init_config_file(path: &str) -> std::io::Result<()> {
 # Set this to your favorite editor to write your quotes (vim, nvim, nano, ...)
 # You can also set it to "stdin" to read from the standard input,
 # or "default" to use the default editor on your machine.
-editor = "stdin""#;
+editor = "stdin"
+
+# Set to false to disable the quote grading.
+enable_quote_grading = true"#;
 
     let mut file = File::create(path)?;
     file.write_all(default.as_bytes())?;
