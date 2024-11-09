@@ -26,10 +26,10 @@ fn main() {
 
     let quote: String = get_quote();
     let author: String = get_author();
-    let date: String = get_date();
     let grade: f32 = get_grade();
+    let date: String = get_date();
 
-    if let Err(e) = update_quotes(&quote, &author, &date, &grade, QUOTES_FILE_NAME) {
+    if let Err(e) = update_quotes(&quote, &author, &grade, &date, QUOTES_FILE_NAME) {
         eprintln!("Failed to update quotes: {e}");
         exit(-1);
     }
@@ -53,8 +53,8 @@ fn init_app_fs() {
 fn update_quotes(
     quote: &str,
     author: &str,
-    date: &str,
     grade: &f32,
+    date: &str,
     file_name: &str,
 ) -> Result<(), std::io::Error> {
     let home_dir = dirs::home_dir().expect("Home directory not found.");
@@ -123,6 +123,7 @@ fn init_file(path: &str, content: &str) {
     file.sync_all()
         .unwrap_or_else(|_| panic!("Failed to sync file to fs {:#?}", path));
 }
+
 /// Adds a new quote to the json file.
 fn update_json(
     quote: &str,
@@ -166,7 +167,7 @@ fn update_json(
         }
     }
 
-    // Open the file again to overrite the file and add the new quote.
+    // Open the file again to overwrite the file and add the new quote.
     let file = File::create(filepath)?;
     let writer = BufWriter::new(file);
     // Beautiful pretty JSON with indent!
@@ -350,20 +351,22 @@ fn get_date() -> String {
 }
 
 /// Gets a grade of the quote from the user
+///
 /// # Returns
-///  A float (f16) of th grade on 10
-
+/// A `f32` of the grade in the range 0-10.
 fn get_grade() -> f32 {
     loop {
-        let user_input = prompt_user("Set the grade for the quote between 0-10: ");
-        let user_grade = match user_input.parse::<f32>() {
-            Ok(value) => value,
-            Err(_) => -2.0,
-        };
-        if (user_grade <= 10.0 && user_grade >= 0.0) || (user_grade == -1.0) {
-            return user_grade;
+        let user_input = prompt_user("Quote grade (floating number 0-10)\n-> ");
+        if let Ok(value) = user_input.parse::<f32>() {
+            if !(0.0..10.0).contains(&value) {
+                eprintln!("Error: invalid range. (Expected from 0.0 to 10.0).");
+                continue;
+            }
+
+            // We use .abs() because "-0" is valid, and we don't want "-0" in the JSON.
+            return value.abs();
         } else {
-            println!("Wrong value or format number")
+            eprintln!("Error: not a floating number.");
         }
     }
 }
