@@ -13,7 +13,7 @@ use std::{
 };
 
 use chrono::Local;
-use config::{get_config, Config};
+use config::{load, Config};
 use tempfile::NamedTempFile;
 
 const PROGRAM_DATA_DIRECTORY: &str = ".quotekeeper";
@@ -26,7 +26,7 @@ lazy_static! {
     static ref CONFIG: Mutex<Config> = {
         let home_dir = dirs::home_dir().expect("Home directory not found.");
         let config_path = home_dir.join(PROGRAM_DATA_DIRECTORY).join(CONFIG_FILE_NAME);
-        let config = get_config(&config_path.to_string_lossy());
+        let config = load(&config_path.to_string_lossy());
 
         Mutex::new(config)
     };
@@ -87,7 +87,7 @@ fn update_quotes(
 
 #[derive(Serialize, Deserialize, Default)]
 struct Quote {
-    quote: String,
+    content: String,
     author: String,
     grade: Option<f32>,
     date: String,
@@ -101,14 +101,14 @@ impl std::fmt::Display for Quote {
             return write!(
                 f,
                 "quote: {}\nauthor: {}\ngrade: {}\ndate: {}",
-                self.quote, self.author, grade, self.date
+                self.content, self.author, grade, self.date
             );
         }
 
         write!(
             f,
             "quote: {}\nauthor: {}\ngrade: {:?}\ndate: {}",
-            self.quote, self.author, self.grade, self.date
+            self.content, self.author, self.grade, self.date
         )
     }
 }
@@ -162,7 +162,7 @@ fn update_json(
     let reader = BufReader::new(file);
 
     let new_quote: Quote = Quote {
-        quote: quote.to_string(),
+        content: quote.to_string(),
         author: author.to_string(),
         grade,
         date: date.to_string(),
@@ -174,20 +174,17 @@ fn update_json(
     let mut quotes = Quotes::default();
 
     let parsed_data: Result<Quotes, _> = serde_json::from_reader(reader);
-    match parsed_data {
-        Ok(read_quotes) => {
-            quotes = read_quotes;
-            quotes.quotes.push(new_quote);
-        }
-        Err(_) => {
-            eprintln!("Failed to parse quotes file '{filepath}', reinitializing file: corrupt JSON or quotes file not existing.");
+    if let Ok(read_quotes) = parsed_data {
+        quotes = read_quotes;
+        quotes.quotes.push(new_quote);
+    } else {
+        eprintln!("Failed to parse quotes file '{filepath}', reinitializing file: corrupt JSON or quotes file not existing.");
 
-            if let Err(e) = backup_quotes(filepath) {
-                eprintln!("Failed to backup the quotes file: {e}")
-            }
-
-            quotes.quotes = vec![new_quote];
+        if let Err(e) = backup_quotes(filepath) {
+            eprintln!("Failed to backup the quotes file: {e}");
         }
+
+        quotes.quotes = vec![new_quote];
     }
 
     // Open the file again to overwrite the file and add the new quote.
@@ -227,15 +224,13 @@ fn backup_quotes(filepath: &str) -> std::io::Result<()> {
         .to_string();
 
     // Split "quotes.json" into "quotes" and "json" into `String`.
-    let mut split_file_name = file_name.split(".");
+    let mut split_file_name = file_name.split('.');
     let name: String = split_file_name
         .next()
-        .map(|s| s.to_string())
-        .unwrap_or("ERR_quotes".to_string());
+        .map_or("ERR_quotes".to_string(), ToString::to_string);
     let ext: String = split_file_name
         .next()
-        .map(|s| s.to_string())
-        .unwrap_or("ERR_.json".to_string());
+        .map_or("ERR_.json".to_string(), ToString::to_string);
 
     // Create the new filename "[date]_quotes.json"
     let now = Local::now();
@@ -248,8 +243,7 @@ fn backup_quotes(filepath: &str) -> std::io::Result<()> {
     bak_file.write_all(contents.as_bytes())?;
 
     println!(
-        "Successfully backed up the quotes file due to malformed JSON. Backup at {:#?}",
-        bak_file_path
+        "Successfully backed up the quotes file due to malformed JSON. Backup at {bak_file_path:#?}"
     );
 
     Ok(())
@@ -269,8 +263,7 @@ fn get_author() -> String {
 /// # Returns
 /// A `String`, the quote from the user.
 fn get_quote() -> String {
-    let config = CONFIG.lock().unwrap();
-    let editor: &str = &config.settings.editor;
+    let editor: &str = &CONFIG.lock().unwrap().settings.editor;
 
     match editor {
         "stdin" => get_quote_stdin(),
@@ -308,9 +301,7 @@ fn get_quote_editor(editor: &str) -> String {
         .status()
         .unwrap_or_else(|_| panic!("Failed to open {editor}"));
 
-    if !status.success() {
-        panic!("{editor} exited with error.");
-    }
+    assert!(!status.success(), "{editor} exited with error.");
 
     let mut contents = String::new();
     file.read_to_string(&mut contents)
@@ -375,8 +366,7 @@ fn get_date() -> String {
 /// A `Option<f32>` of the grade in the range 0-10.
 /// If the user enters "None", "Nil", "Null" or "No" returns `None`.
 fn get_grade() -> Option<f32> {
-    let config = CONFIG.lock().unwrap();
-    if !config.settings.enable_quote_grading {
+    if CONFIG.lock().unwrap().settings.enable_quote_grading {
         return None;
     }
 

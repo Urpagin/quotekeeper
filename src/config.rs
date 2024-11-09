@@ -22,7 +22,7 @@ pub struct Settings {
 ///
 /// # Returns
 /// A `Config` struct containing the settings of the config file.
-pub fn get_config(path: &str) -> Config {
+pub fn load(path: &str) -> Config {
     // Make sure the config file exists
     if !Path::new(path).exists() {
         if let Err(e) = init_config_file(path) {
@@ -56,7 +56,7 @@ enable_quote_grading = true"#;
 
     let mut file = File::create(path)?;
     file.write_all(default.as_bytes())?;
-    println!("Initialized config file '{}'", path);
+    println!("Initialized config file '{path}'");
     Ok(())
 }
 
