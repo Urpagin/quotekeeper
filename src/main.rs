@@ -366,7 +366,7 @@ fn get_date() -> String {
 /// A `Option<f32>` of the grade in the range 0-10.
 /// If the user enters "None", "Nil", "Null" or "No" returns `None`.
 fn get_grade() -> Option<f32> {
-    if CONFIG.lock().unwrap().settings.enable_quote_grading {
+    if !CONFIG.lock().unwrap().settings.enable_quote_grading {
         return None;
     }
 
