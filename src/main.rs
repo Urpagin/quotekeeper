@@ -1,8 +1,10 @@
+mod arguments;
 mod config;
-
+use arguments::init;
 use core::panic;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     env::var,
     fs::File,
@@ -36,7 +38,7 @@ lazy_static! {
 
 fn main() {
     init_app_fs();
-
+    init();
     let quote: String = get_quote();
     let author: String = get_author();
     let grade: Option<f32> = get_grade();
@@ -331,7 +333,7 @@ fn get_quote_editor(editor: &str) -> String {
 }
 
 #[derive(Debug)]
-enum YesOrNo {
+pub enum YesOrNo {
     Yes,
     No,
 }
@@ -340,7 +342,7 @@ enum YesOrNo {
 ///
 /// # Returns
 /// A `YesOrNo` enum read from stdin.
-fn prompt_yes_or_no(prompt: &str, default: YesOrNo) -> YesOrNo {
+pub fn prompt_yes_or_no(prompt: &str, default: YesOrNo) -> YesOrNo {
     let user_input: &str = &prompt_user_allow_empty(prompt).to_lowercase();
     match user_input {
         "y" | "yes" => YesOrNo::Yes,
@@ -438,3 +440,21 @@ fn prompt_user(prompt: &str) -> String {
         }
     }
 }
+// fn get_field(filepath: &str, field: &str) -> Vec<String> {
+//     let file = File::open(filepath).expect("Failed to open the file.");
+//     let reader = BufReader::new(file);
+
+//     let json_data: Value = serde_json::from_reader(reader).expect("Failed to parse the file.");
+
+//     let mut field_values = Vec::new();
+
+//     if let Some(quotes_array) = json_data.get("quotes").and_then(|v| v.as_array()) {
+//         for quote in quotes_array {
+//             if let Some(value) = quote.get(field).and_then(|v| v.as_str()) {
+//                 field_values.push(value.to_string());
+//             }
+//         }
+//     }
+
+//     field_values
+// }
